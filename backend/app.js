@@ -13,7 +13,11 @@ const app = express();
 const publicDir = path.join(process.cwd(), "public");
 
 // Global Middlewares
-app.use(helmet());
+app.use(
+    helmet({
+        contentSecurityPolicy: false
+    })
+);
 app.use(hpp());
 
 // HTTPS enforcement in production
