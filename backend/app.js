@@ -56,11 +56,16 @@ app.get("/health", (req, res) => {
 // if the public directory exists, serve the static files
 // this is for the production build
 if (fs.existsSync(publicDir)) {
-  app.use(express.static(publicDir));
+    app.use(express.static(publicDir));
 
-  app.get("/{*any}", (req, res, next) => {
-    res.sendFile(path.join(publicDir, "index.html"), (err) => next(err));
-  });
+    app.get("/{*any}", (req, res, next) => {
+        res.sendFile(
+            path.join(publicDir, "index.html"),
+            (err) => {
+                if (err) next(err);
+            }
+        );
+    });
 }
 
 // Error Middleware
