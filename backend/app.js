@@ -7,6 +7,8 @@ import { clerkMiddleware } from '@clerk/express'
 import fs from "fs";
 import path from "path";
 import clerkWebhook from "./webhooks/clerk.webhook.js";
+import authRouter from "./routes/auth.route.js";
+import messageRouter from "./routes/message.route.js";
 
 
 const app = express();
@@ -55,10 +57,15 @@ app.set("etag", false);
 
 
 app.get("/health", (req, res) => {
-  res.status(200).json({ ok: true });
+  res.status(200).json({
+    status: "OK",
+    uptime: process.uptime(),
+  });
 });
 
 // API Routes
+app.use("/api/auth", authRouter);
+app.use("/api/message", messageRouter);
 
 
 // if the public directory exists, serve the static files
