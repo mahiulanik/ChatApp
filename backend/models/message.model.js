@@ -14,16 +14,27 @@ const messageSchema = new mongoose.Schema(
     },
     text: {
       type: String,
+      trim: true,
+      default: "",
     },
-    image: {
-      type: String,
-    },
-    video: {
-      type: String,
+    media: {
+      url: String,
+      publicId: String,
+      resourceType: {
+        type: String,
+        enum: ["image", "video"],
+      },
+      mimeType: String,
     },
   },
-  { timestamps: true, versionKey: false },
+  {
+    timestamps: true,
+    versionKey: false,
+  }
 );
+
+messageSchema.index({ senderId: 1, receiverId: 1, createdAt: 1 });
+messageSchema.index({ receiverId: 1, senderId: 1, createdAt: 1 });
 
 const Message = mongoose.model("Message", messageSchema);
 
