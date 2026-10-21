@@ -15,7 +15,9 @@ import { useTheme } from "./ThemeContext";
 
 const ChatContext = createContext(null);
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:4000";
+// Same-origin by default: local dev rides Vite's /socket.io proxy, in
+// production the backend serves this page itself. VITE_SOCKET_URL overrides.
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || window.location.origin;
 
 /**
  * Owns everything chat-related: the current user profile, sidebar lists,
@@ -104,7 +106,9 @@ export function ChatProvider({ children }) {
         setConversations([]);
         setApiError(
           serverMsg ||
-            "Can't reach the MessageX API — is the backend running on port 4000?",
+            (import.meta.env.DEV
+              ? "Can't reach the MessageX API — is the backend running on port 4000?"
+              : "Can't reach the MessageX API — the server may still be waking up (cold start) or is offline."),
         );
       } finally {
         if (!stale) setBootstrapping(false);

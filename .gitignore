@@ -36,7 +36,7 @@ temp/
 # Backend
 # ------------------------------------------
 backend/uploads/
-backend/public/uploads/
+backend/public/
 backend/storage/
 backend/dist/
 backend/build/
