@@ -35,8 +35,9 @@ if (process.env.NODE_ENV === "production") {
 
 const allowedOrigins = [
     "http://localhost:5173",
-    "https://hrmsync.vercel.app"
-];
+    "https://hrmsync.vercel.app",
+    (process.env.FRONTEND_URL || "").trim(),
+].filter(Boolean);
 
 app.use(cors({
     origin: allowedOrigins,

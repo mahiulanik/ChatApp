@@ -12,7 +12,7 @@ export default function MessageBubble({ message, mine }) {
     <div className={cn("msg-in flex", mine ? "justify-end" : "justify-start")}>
       <div
         className={cn(
-          "max-w-[78%] rounded-2xl shadow-sm transition-opacity dark:shadow-none",
+          "max-w-[86%] rounded-2xl shadow-sm transition-opacity dark:shadow-none",
           media
             ? cn("p-1.5", mine ? "bg-accent" : "bg-surface")
             : cn(

@@ -26,6 +26,16 @@ const messageSchema = new mongoose.Schema(
       },
       mimeType: String,
     },
+    // Set when the receiver opens the conversation; null = still unread.
+    readAt: {
+      type: Date,
+      default: null,
+    },
+    // Users who deleted this chat from THEIR view only (soft per-user delete).
+    deletedFor: {
+      type: [mongoose.Schema.Types.ObjectId],
+      default: [],
+    },
   },
   {
     timestamps: true,

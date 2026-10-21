@@ -1,7 +1,14 @@
+# Keep secrets and local artifacts out of the image build context.
+# (Render clones from git so these are already absent there — this protects
+#  local `docker build` runs from baking .env secrets into image layers.)
+
 **/node_modules
-**/dist
 **/.env
 **/.env.*
+**/dist
+backend/public
 .git
-.DS_Store
-npm-debug.log*
+**/*.log
+logs/
+.cache/
+.eslintcache

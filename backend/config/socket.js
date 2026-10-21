@@ -1,6 +1,11 @@
 import { Server } from "socket.io";
 
-const allowedOrigin = (process.env.FRONTEND_URL || "http://localhost:5173").trim();
+// Dev (localhost:5173) AND the deployed frontend (FRONTEND_URL) must both be
+// able to open a socket — otherwise realtime events silently never arrive.
+const allowedOrigins = [
+  "http://localhost:5173",
+  (process.env.FRONTEND_URL || "").trim(),
+].filter(Boolean);
 
 // online users map = { userId: socketId }
 const userSocketMap = {};
@@ -16,7 +21,7 @@ function getReceiverSocketId(userId) {
  * Called once from server.js: `initSocket(server)`.
  */
 function initSocket(server) {
-  io = new Server(server, { cors: { origin: [allowedOrigin] } });
+  io = new Server(server, { cors: { origin: allowedOrigins } });
 
   // io.emit() sends event to everyone - broadcast
   io.on("connection", (socket) => {

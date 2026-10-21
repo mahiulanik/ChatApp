@@ -1,3 +1,4 @@
+import { UserButton } from "@clerk/react";
 import { useChat } from "../context/ChatContext";
 import { useTheme } from "../context/ThemeContext";
 import { cn } from "../lib/utils";
@@ -54,6 +55,10 @@ export default function ChatHeader({ user }) {
         >
           {sound ? <VolumeIcon /> : <VolumeOffIcon />}
         </IconButton>
+        {/* Profile — right side of the sound button */}
+        <div className="ml-1.5">
+          <UserButton />
+        </div>
         {user && (
           <span className="hidden md:block">
             <IconButton label="Close chat" onClick={closeChat}>

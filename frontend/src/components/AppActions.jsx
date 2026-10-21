@@ -1,29 +1,20 @@
 import { useState } from "react";
-import { useTheme } from "../context/ThemeContext";
 import AccentThemeModal from "./AccentThemeModal";
 import IconButton from "./IconButton";
 import ThemeToggle from "./ThemeToggle";
 import { cn } from "../lib/utils";
-import { ImageIcon, PaletteIcon } from "./icons";
+import { PaletteIcon } from "./icons";
 
 /**
- * Wallpaper + accent + theme controls shared by the landing top bar
- * and the chat header.
+ * Accent + theme controls shared by the landing top bar
+ * and the chat header (wallpaper toggle removed on purpose).
  */
 export default function AppActions({ className = "" }) {
-  const { wallpaper, toggleWallpaper } = useTheme();
   const [accentOpen, setAccentOpen] = useState(false);
 
   return (
     <>
       <div className={cn("flex items-center gap-1", className)}>
-        <IconButton
-          label="Toggle wallpaper"
-          onClick={toggleWallpaper}
-          active={wallpaper}
-        >
-          <ImageIcon />
-        </IconButton>
         <IconButton label="Accent theme" onClick={() => setAccentOpen(true)}>
           <PaletteIcon />
         </IconButton>

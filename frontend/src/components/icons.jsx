@@ -132,6 +132,16 @@ export const CheckIcon = (props) => (
   </Svg>
 );
 
+export const TrashIcon = (props) => (
+  <Svg {...props}>
+    <path d="M3 6h18" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <path d="M10 11v6" />
+    <path d="M14 11v6" />
+  </Svg>
+);
+
 /** Filled paper-plane used by the send button. */
 export function SendIcon({ className = "h-[18px] w-[18px]" }) {
   return (

@@ -37,8 +37,8 @@ export default function MessageList({ myId }) {
   }
 
   return (
-    <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-6">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-3">
+    <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-9 py-4 sm:px-14">
+      <div className="flex w-full flex-col gap-3">
         {groups.map((group) => (
           <div key={group.label} className="flex flex-col gap-3">
             <div className="py-2 text-center text-[11px] font-medium tracking-[0.18em] text-faint">

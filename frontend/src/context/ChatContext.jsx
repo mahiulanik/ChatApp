@@ -41,6 +41,9 @@ export function ChatProvider({ children }) {
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [apiError, setApiError] = useState("");
   const [retryToken, setRetryToken] = useState(0);
+  // Unread badge per conversation: { [userId]: count } — seeded from the
+  // conversations endpoint, bumped on incoming messages, cleared on open.
+  const [unreadCounts, setUnreadCounts] = useState({});
 
   // Refs so long-lived effects (socket callbacks) always see fresh values.
   const usersRef = useRef(users);
@@ -75,6 +78,25 @@ export function ChatProvider({ children }) {
 
   const retryBootstrap = useCallback(() => setRetryToken((t) => t + 1), []);
 
+  /** Clear a conversation's unread badge and persist readAt on the server. */
+  const clearUnread = useCallback(async (userId) => {
+    const key = String(userId);
+    setUnreadCounts((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    try {
+      const token = await getTokenRef.current();
+      await api.put(`/api/message/read/${key}`, null, {
+        headers: authHeaders(token),
+      });
+    } catch (err) {
+      console.error("[MessageX] Failed to mark conversation read:", err?.message || err);
+    }
+  }, []);
+
   // ---------------------------------------------------------- bootstrap
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -96,7 +118,15 @@ export function ChatProvider({ children }) {
         if (stale) return;
         setMe(meData);
         setUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
-        setConversations(Array.isArray(conversationsRes.data) ? conversationsRes.data : []);
+        const convs = Array.isArray(conversationsRes.data) ? conversationsRes.data : [];
+        setConversations(convs);
+        setUnreadCounts(
+          Object.fromEntries(
+            convs
+              .filter((c) => c.unreadCount > 0)
+              .map((c) => [String(c._id), c.unreadCount]),
+          ),
+        );
       } catch (err) {
         if (stale) return;
         console.error("[MessageX] Failed to load chat data:", err?.message || err);
@@ -104,6 +134,7 @@ export function ChatProvider({ children }) {
         setMe(null);
         setUsers([]);
         setConversations([]);
+        setUnreadCounts({});
         setApiError(
           serverMsg ||
             (import.meta.env.DEV
@@ -141,6 +172,12 @@ export function ChatProvider({ children }) {
         setMessages((prev) =>
           prev.some((m) => String(m._id) === String(msg._id)) ? prev : [...prev, msg],
         );
+        // Chat is open — persist readAt for the new message.
+        clearUnread(msg.senderId);
+      } else if (!fromMe) {
+        // Chat not open — bump the unread badge in the sidebar.
+        const key = String(msg.senderId);
+        setUnreadCounts((prev) => ({ ...prev, [key]: (prev[key] || 0) + 1 }));
       }
       if (!fromMe) {
         touchConversation(msg.senderId);
@@ -151,11 +188,12 @@ export function ChatProvider({ children }) {
     return () => {
       socket.disconnect();
     };
-  }, [isSignedIn, me?._id, touchConversation]);
+  }, [isSignedIn, me?._id, touchConversation, clearUnread]);
 
   // ------------------------------------------------------------- actions
   const openChat = useCallback(async (id) => {
     setSelectedId(id);
+    clearUnread(id);
     setMessagesLoading(true);
     try {
       const token = await getTokenRef.current();
@@ -171,12 +209,44 @@ export function ChatProvider({ children }) {
     } finally {
       setMessagesLoading(false);
     }
-  }, []);
+  }, [clearUnread]);
 
   const closeChat = useCallback(() => {
     setSelectedId(null);
     setMessages([]);
   }, []);
+
+  /**
+   * Delete a chat FROM MY VIEW ONLY — the other user keeps every message.
+   * Optimistically drops it from the sidebar, then persists via the API.
+   */
+  const deleteConversation = useCallback(
+    async (id) => {
+      const key = String(id);
+      setConversations((prev) => prev.filter((u) => String(u._id) !== key));
+      setUnreadCounts((prev) => {
+        if (!prev[key]) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+      if (String(selectedRef.current) === key) closeChat();
+
+      try {
+        const token = await getTokenRef.current();
+        await api.delete(`/api/message/conversation/${key}`, {
+          headers: authHeaders(token),
+        });
+        setApiError("");
+      } catch (err) {
+        console.error("[MessageX] Failed to delete conversation:", err?.message || err);
+        setApiError(
+          err?.response?.data?.message || "Couldn't delete this conversation.",
+        );
+      }
+    },
+    [closeChat],
+  );
 
   const sendMessage = useCallback(
     async ({ text = "", file = null } = {}) => {
@@ -245,10 +315,12 @@ export function ChatProvider({ children }) {
       bootstrapping,
       messagesLoading,
       apiError,
+      unreadCounts,
       retryBootstrap,
       isOnline,
       openChat,
       closeChat,
+      deleteConversation,
       sendMessage,
     }),
     [
@@ -261,10 +333,12 @@ export function ChatProvider({ children }) {
       bootstrapping,
       messagesLoading,
       apiError,
+      unreadCounts,
       retryBootstrap,
       isOnline,
       openChat,
       closeChat,
+      deleteConversation,
       sendMessage,
     ],
   );

@@ -1,27 +1,46 @@
 import { useState } from "react";
-import { UserButton } from "@clerk/react";
 import { useChat } from "../context/ChatContext";
 import { APP_NAME } from "../lib/constants";
 import { cn } from "../lib/utils";
 import Avatar from "./Avatar";
 import Logo from "./Logo";
-import { MessageIcon, SearchIcon, UsersIcon } from "./icons";
+import { MessageIcon, SearchIcon, TrashIcon, UsersIcon } from "./icons";
 
-function ListRow({ user, active, online, onClick }) {
+function ListRow({ user, active, online, unread = 0, onClick, onDelete }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
       className={cn(
-        "flex w-full items-center gap-3 border-b border-line/70 px-3 py-2.5 text-left transition hover:bg-surface/60",
+        "group flex w-full items-center border-b border-line/70 transition hover:bg-surface/60",
         active && "bg-accent-soft hover:bg-accent-soft",
       )}
     >
-      <Avatar user={user} online={online} />
-      <span className="min-w-0 truncate text-sm font-semibold text-ink">
-        {user.fullName}
-      </span>
-    </button>
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left"
+      >
+        <Avatar user={user} online={online} />
+        <span className="min-w-0 truncate text-sm font-semibold text-ink">
+          {user.fullName}
+        </span>
+        {unread > 0 && (
+          <span className="ml-auto grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-accent px-1.5 text-[11px] font-semibold leading-none text-accent-ink">
+            {unread > 99 ? "99+" : unread}
+          </span>
+        )}
+      </button>
+      {onDelete && (
+        <button
+          type="button"
+          onClick={onDelete}
+          aria-label={`Delete chat with ${user.fullName}`}
+          title="Delete chat for me only"
+          className="mr-2 grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted opacity-0 transition hover:bg-surface hover:text-red-500 focus:opacity-100 group-hover:opacity-100"
+        >
+          <TrashIcon className="h-4 w-4" />
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -42,6 +61,8 @@ export default function Sidebar({ className = "" }) {
     bootstrapping,
     apiError,
     retryBootstrap,
+    unreadCounts,
+    deleteConversation,
   } = useChat();
   const [tab, setTab] = useState("chats");
   const [query, setQuery] = useState("");
@@ -53,6 +74,13 @@ export default function Sidebar({ className = "" }) {
 
   const handleSelect = (id) => openChat(id);
 
+  const handleDelete = (id) => {
+    const ok = window.confirm(
+      "Delete this chat? It will disappear from YOUR sidebar only — the other person keeps the conversation.",
+    );
+    if (ok) deleteConversation(id);
+  };
+
   return (
     <aside
       className={cn(
@@ -60,13 +88,10 @@ export default function Sidebar({ className = "" }) {
         className,
       )}
     >
-      {/* Brand + account */}
+      {/* Brand */}
       <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-line px-3">
         <Logo size={30} />
         <span className="text-base font-bold tracking-tight text-ink">{APP_NAME}</span>
-        <div className="ml-auto">
-          <UserButton />
-        </div>
       </div>
 
       {/* Search */}
@@ -145,7 +170,9 @@ export default function Sidebar({ className = "" }) {
               user={user}
               active={String(user._id) === String(selectedId)}
               online={isOnline(user._id)}
+              unread={tab === "chats" ? unreadCounts[String(user._id)] || 0 : 0}
               onClick={() => handleSelect(user._id)}
+              onDelete={tab === "chats" ? () => handleDelete(user._id) : undefined}
             />
           ))
         )}
