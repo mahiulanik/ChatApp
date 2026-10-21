@@ -28,7 +28,7 @@ export const uploadImage = (fileBuffer, folder, options = {}) => {
 export const uploadChatMedia = async (file, user) => {
     const userId = String(user._id);
 
-    const safeName = user.name
+    const safeName = (user.fullName || "user")
         .trim()
         .replace(/[^\p{L}\p{N}_-]/gu, "_");
 
@@ -39,10 +39,10 @@ export const uploadChatMedia = async (file, user) => {
         `chat/${userId}`,
         {
             resource_type: resourceType,
-            public_id: fileName,
+            public_id: `${safeName}_${randomUUID()}`,
             tags: ["chat", `user_${userId}`],
             context: {
-                user_name: user.name
+                user_name: user.fullName || ""
             }
         }
     );

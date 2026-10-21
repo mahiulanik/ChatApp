@@ -1,8 +1,15 @@
 import "dotenv/config";
-import { app, server } from "./config/socket.js";
+import http from "http";
+import app from "./app.js";
 import connectDB from "./config/db.js";
+import { initSocket } from "./config/socket.js";
 
-const PORT = process.env.PORT || 4000;
+// One HTTP server serves both the Express app and Socket.IO.
+const server = http.createServer(app);
+initSocket(server);
+
+// Number() also guards against values like " 4000" in .env
+const PORT = Number(process.env.PORT) || 4000;
 
 await connectDB();
 

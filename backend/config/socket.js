@@ -1,34 +1,45 @@
-import express from "express";
-import http from "http";
 import { Server } from "socket.io";
 
-const app = express();
-const server = http.createServer(app);
+const allowedOrigin = (process.env.FRONTEND_URL || "http://localhost:5173").trim();
 
-const allowedOrigin = process.env.FRONTEND_URL || "http://localhost:5173";
+// online users map = { userId: socketId }
+const userSocketMap = {};
 
-const io = new Server(server, { cors: { origin: [allowedOrigin] } });
+let io = null;
 
 function getReceiverSocketId(userId) {
   return userSocketMap[userId];
 }
 
-// online users map = { userId: socketId }
-const userSocketMap = {};
-
-io.on("connection", (socket) => {
-  const userId = socket.handshake.query.userId;
-
-  if (userId) userSocketMap[userId] = socket.id;
+/**
+ * Attach Socket.IO to the HTTP server that also serves the Express app.
+ * Called once from server.js: `initSocket(server)`.
+ */
+function initSocket(server) {
+  io = new Server(server, { cors: { origin: [allowedOrigin] } });
 
   // io.emit() sends event to everyone - broadcast
-  io.emit("getOnlineUsers", Object.keys(userSocketMap));
+  io.on("connection", (socket) => {
+    const userId = socket.handshake.query.userId;
 
-  // socket.on is used to listen for events
-  socket.on("disconnect", () => {
-    if (userId) delete userSocketMap[userId];
+    if (userId) userSocketMap[userId] = socket.id;
+
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
-  });
-});
 
-export { app, server, io, getReceiverSocketId };
+    // socket.on is used to listen for events
+    socket.on("disconnect", () => {
+      if (userId) delete userSocketMap[userId];
+      io.emit("getOnlineUsers", Object.keys(userSocketMap));
+    });
+  });
+
+  return io;
+}
+
+/** Access the initialized instance (safe to call inside request handlers). */
+function getIO() {
+  if (!io) throw new Error("Socket.io is not initialized yet — call initSocket(server) first");
+  return io;
+}
+
+export { initSocket, getIO, getReceiverSocketId };
