@@ -160,9 +160,16 @@ export function ChatProvider({ children }) {
     if (!isSignedIn || !me?._id) return;
 
     const socket = io(SOCKET_URL, {
-      query: { userId: String(me._id) },
-      transports: ["websocket", "polling"],
-    });
+    auth: async (callback) => {
+        try {
+            const token = await getTokenRef.current();
+            callback({ token });
+        } catch {
+            callback({ token: null });
+        }
+    },
+    transports: ["websocket", "polling"]
+});
 
     socketRef.current = socket;
 
@@ -291,7 +298,7 @@ export function ChatProvider({ children }) {
         media: file
           ? {
               url: URL.createObjectURL(file),
-              resourceType: file.type.startsWith("video") ? "video" : "image",
+              resourceType: file.type.startsWith("image/") ? "image" : "video",
               mimeType: file.type,
             }
           : null,

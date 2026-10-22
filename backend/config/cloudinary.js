@@ -1,3 +1,4 @@
+
 import { v2 as cloudinary } from "cloudinary";
 import { randomUUID } from "node:crypto";
 
@@ -7,9 +8,9 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-export const uploadImage = (fileBuffer, folder, options = {}) => {
-    return new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
+export const uploadImage = (buffer, folder, options = {}) =>
+    new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
             {
                 folder,
                 resource_type: "image",
@@ -21,31 +22,27 @@ export const uploadImage = (fileBuffer, folder, options = {}) => {
             }
         );
 
-        uploadStream.end(fileBuffer);
+        stream.end(buffer);
     });
-};
 
 export const uploadChatMedia = async (file, user) => {
     const userId = String(user._id);
+    const fullName = user.fullName || "";
 
-    const safeName = (user.fullName || "user")
+    const safeName = (fullName || "user")
         .trim()
         .replace(/[^\p{L}\p{N}_-]/gu, "_");
 
-    const resourceType = file.mimetype.startsWith("image/") ? "image" : "video";
+    const resourceType = file.mimetype.startsWith("image/")
+        ? "image"
+        : "video";
 
-    const result = await uploadImage(
-        file.buffer,
-        `chat/${userId}`,
-        {
-            resource_type: resourceType,
-            public_id: `${safeName}_${randomUUID()}`,
-            tags: ["chat", `user_${userId}`],
-            context: {
-                user_name: user.fullName || ""
-            }
-        }
-    );
+    const result = await uploadImage(file.buffer, `chat/${userId}`, {
+        resource_type: resourceType,
+        public_id: `${safeName}_${randomUUID()}`,
+        tags: ["chat", `user_${userId}`],
+        context: { user_name: fullName }
+    });
 
     return {
         url: result.secure_url,

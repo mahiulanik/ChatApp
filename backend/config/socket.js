@@ -1,67 +1,87 @@
 import { Server } from "socket.io";
+import { verifyToken } from "@clerk/backend";
+import User from "../models/user.model.js";
 
-// Dev (localhost:5173) AND the deployed frontend (FRONTEND_URL) must both be
-// able to open a socket — otherwise realtime events silently never arrive.
 const allowedOrigins = [
-  "http://localhost:5173",
-  (process.env.FRONTEND_URL || "").trim(),
+    "http://localhost:5173",
+    process.env.FRONTEND_URL?.trim()
 ].filter(Boolean);
 
-// online users map = { userId: socketId }
-const userSocketMap = {};
+const userSocketMap = new Map();
+let io;
 
-let io = null;
+export const getReceiverSocketId = (userId) =>
+    userSocketMap.get(String(userId))?.values().next().value;
 
-function getReceiverSocketId(userId) {
-  return userSocketMap[userId];
-}
-
-/**
- * Attach Socket.IO to the HTTP server that also serves the Express app.
- * Called once from server.js: `initSocket(server)`.
- */
-function initSocket(server) {
-  io = new Server(server, { cors: { origin: allowedOrigins } });
-
-  // io.emit() sends event to everyone - broadcast
-  io.on("connection", (socket) => {
-    const userId = socket.handshake.query.userId;
-
-    if (userId) userSocketMap[userId] = socket.id;
-
-    io.emit("getOnlineUsers", Object.keys(userSocketMap));
-
-    // Typing presence — relayed ONLY to the person being typed at.
-    socket.on("typing", (payload) => {
-      const to = payload?.to && String(payload.to);
-      const targetSocketId = to && userSocketMap[to];
-      if (userId && targetSocketId) {
-        io.to(targetSocketId).emit("typing", { from: userId });
-      }
+export const initSocket = (server) => {
+    io = new Server(server, {
+        cors: { origin: allowedOrigins }
     });
 
-    socket.on("stopTyping", (payload) => {
-      const to = payload?.to && String(payload.to);
-      const targetSocketId = to && userSocketMap[to];
-      if (userId && targetSocketId) {
-        io.to(targetSocketId).emit("stopTyping", { from: userId });
-      }
+    io.use(async (socket, next) => {
+        try {
+            const token = socket.handshake.auth?.token;
+            if (typeof token !== "string" || !token) {
+                return next(new Error("Unauthorized"));
+            }
+
+            const { sub } = await verifyToken(token, {
+                secretKey: process.env.CLERK_SECRET_KEY,
+                authorizedParties: allowedOrigins
+            });
+
+            const user = await User.findOne({ clerkId: sub }).select("_id").lean();
+
+            if (!user) {
+                return next(new Error("User not found"));
+            }
+
+            socket.data.userId = String(user._id);
+            next();
+        } catch {
+            next(new Error("Unauthorized"));
+        }
     });
 
-    // socket.on is used to listen for events
-    socket.on("disconnect", () => {
-      if (userId) delete userSocketMap[userId];
-      io.emit("getOnlineUsers", Object.keys(userSocketMap));
+    io.on("connection", (socket) => {
+        const userId = socket.data.userId;
+
+        if (!userSocketMap.has(userId)) {
+            userSocketMap.set(userId, new Set());
+        }
+
+        userSocketMap.get(userId).add(socket.id);
+        socket.join(`user:${userId}`);
+
+        io.emit("getOnlineUsers", [...userSocketMap.keys()]);
+
+        const relayTyping = (event, { to } = {}) => {
+            if (typeof to !== "string" || !userSocketMap.has(to)) return;
+
+            io.to(`user:${to}`).emit(event, { from: userId });
+        };
+
+        socket.on("typing", (payload) => relayTyping("typing", payload));
+        socket.on("stopTyping", (payload) => relayTyping("stopTyping", payload));
+
+        socket.on("disconnect", () => {
+            const sockets = userSocketMap.get(userId);
+            if (!sockets) return;
+
+            sockets.delete(socket.id);
+
+            if (sockets.size === 0) {
+                userSocketMap.delete(userId);
+            }
+
+            io.emit("getOnlineUsers", [...userSocketMap.keys()]);
+        });
     });
-  });
 
-  return io;
-}
+    return io;
+};
 
-/** Access the initialized instance (safe to call inside request handlers). */
-function getIO() {
-  if (!io) throw new Error("Socket.io is not initialized yet — call initSocket(server) first");
-  return io;
-}
-
-export { initSocket, getIO, getReceiverSocketId };
+export const getIO = () => {
+    if (!io) throw new Error("Socket.IO is not initialized");
+    return io;
+};
