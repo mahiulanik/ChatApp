@@ -132,6 +132,14 @@ export const CheckIcon = (props) => (
   </Svg>
 );
 
+export const SmileyIcon = (props) => (
+  <Svg {...props}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M8.5 14.5c.8 1.2 2.1 1.9 3.5 1.9s2.7-.7 3.5-1.9" />
+    <path d="M9 9.5h.01M15 9.5h.01" />
+  </Svg>
+);
+
 export const TrashIcon = (props) => (
   <Svg {...props}>
     <path d="M3 6h18" />

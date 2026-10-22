@@ -44,6 +44,8 @@ export function ChatProvider({ children }) {
   // Unread badge per conversation: { [userId]: count } — seeded from the
   // conversations endpoint, bumped on incoming messages, cleared on open.
   const [unreadCounts, setUnreadCounts] = useState({});
+  // Users currently typing toward me: [userId, ...] — drives the typing bubble.
+  const [typingIds, setTypingIds] = useState([]);
 
   // Refs so long-lived effects (socket callbacks) always see fresh values.
   const usersRef = useRef(users);
@@ -51,6 +53,8 @@ export function ChatProvider({ children }) {
   const soundRef = useRef(sound);
   const meRef = useRef(me);
   const getTokenRef = useRef(getToken);
+  const socketRef = useRef(null);
+  const typingTimersRef = useRef({});
 
   useEffect(() => {
     usersRef.current = users;
@@ -160,6 +164,8 @@ export function ChatProvider({ children }) {
       transports: ["websocket", "polling"],
     });
 
+    socketRef.current = socket;
+
     socket.on("getOnlineUsers", (ids) => setOnlineUsers(Array.isArray(ids) ? ids : []));
 
     socket.on("newMessage", (msg) => {
@@ -185,8 +191,30 @@ export function ChatProvider({ children }) {
       }
     });
 
+    // Typing presence — refreshed by every "typing" event and auto-dropped
+    // after a quiet period (also covers the peer crashing/disconnecting).
+    socket.on("typing", ({ from } = {}) => {
+      if (!from) return;
+      const key = String(from);
+      setTypingIds((prev) => (prev.includes(key) ? prev : [...prev, key]));
+      window.clearTimeout(typingTimersRef.current[key]);
+      typingTimersRef.current[key] = window.setTimeout(() => {
+        setTypingIds((prev) => prev.filter((id) => id !== key));
+      }, 2500);
+    });
+
+    socket.on("stopTyping", ({ from } = {}) => {
+      if (!from) return;
+      const key = String(from);
+      window.clearTimeout(typingTimersRef.current[key]);
+      setTypingIds((prev) => prev.filter((id) => id !== key));
+    });
+
     return () => {
       socket.disconnect();
+      socketRef.current = null;
+      Object.values(typingTimersRef.current).forEach((t) => window.clearTimeout(t));
+      typingTimersRef.current = {};
     };
   }, [isSignedIn, me?._id, touchConversation, clearUnread]);
 
@@ -299,9 +327,21 @@ export function ChatProvider({ children }) {
     [touchConversation],
   );
 
+  /** Tell the peer I started/stopped typing — drives their typing bubble. */
+  const sendTyping = useCallback((to, typingNow) => {
+    const socket = socketRef.current;
+    if (!to || !socket) return;
+    socket.emit(typingNow ? "typing" : "stopTyping", { to: String(to) });
+  }, []);
+
   const isOnline = useCallback(
     (id) => onlineUsers.includes(String(id)),
     [onlineUsers],
+  );
+
+  const isTyping = useCallback(
+    (id) => typingIds.includes(String(id)),
+    [typingIds],
   );
 
   const value = useMemo(
@@ -322,6 +362,8 @@ export function ChatProvider({ children }) {
       closeChat,
       deleteConversation,
       sendMessage,
+      sendTyping,
+      isTyping,
     }),
     [
       me,
@@ -340,6 +382,8 @@ export function ChatProvider({ children }) {
       closeChat,
       deleteConversation,
       sendMessage,
+      sendTyping,
+      isTyping,
     ],
   );
 

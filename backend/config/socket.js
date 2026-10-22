@@ -31,6 +31,23 @@ function initSocket(server) {
 
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
+    // Typing presence — relayed ONLY to the person being typed at.
+    socket.on("typing", (payload) => {
+      const to = payload?.to && String(payload.to);
+      const targetSocketId = to && userSocketMap[to];
+      if (userId && targetSocketId) {
+        io.to(targetSocketId).emit("typing", { from: userId });
+      }
+    });
+
+    socket.on("stopTyping", (payload) => {
+      const to = payload?.to && String(payload.to);
+      const targetSocketId = to && userSocketMap[to];
+      if (userId && targetSocketId) {
+        io.to(targetSocketId).emit("stopTyping", { from: userId });
+      }
+    });
+
     // socket.on is used to listen for events
     socket.on("disconnect", () => {
       if (userId) delete userSocketMap[userId];

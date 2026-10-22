@@ -5,8 +5,9 @@ import MessageBubble from "./MessageBubble";
 
 /** Scrollable message area grouped by day with a "TODAY" separator. */
 export default function MessageList({ myId }) {
-  const { messages, messagesLoading, selectedId } = useChat();
+  const { messages, messagesLoading, selectedId, isTyping } = useChat();
   const scrollRef = useRef(null);
+  const peerTyping = selectedId ? isTyping(selectedId) : false;
 
   const groups = useMemo(() => {
     const result = [];
@@ -22,11 +23,11 @@ export default function MessageList({ myId }) {
     return result;
   }, [messages]);
 
-  // Stick to the newest message.
+  // Stick to the newest message (also when the typing bubble appears).
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages, selectedId, messagesLoading]);
+  }, [messages, selectedId, messagesLoading, peerTyping]);
 
   if (messagesLoading) {
     return (
@@ -53,6 +54,16 @@ export default function MessageList({ myId }) {
             ))}
           </div>
         ))}
+
+        {peerTyping && (
+          <div className="mt-3 flex justify-start">
+            <div className="flex items-center gap-1.5 rounded-2xl bg-surface px-4 py-3 shadow-sm dark:shadow-none">
+              <span className="h-2 w-2 animate-bounce rounded-full bg-muted [animation-delay:0ms]" />
+              <span className="h-2 w-2 animate-bounce rounded-full bg-muted [animation-delay:150ms]" />
+              <span className="h-2 w-2 animate-bounce rounded-full bg-muted [animation-delay:300ms]" />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
