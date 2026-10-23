@@ -1,3 +1,4 @@
+import { UserButton } from "@clerk/react";
 import { useState } from "react";
 import { useChat } from "../context/ChatContext";
 import { APP_NAME } from "../lib/constants";
@@ -88,10 +89,13 @@ export default function Sidebar({ className = "" }) {
         className,
       )}
     >
-      {/* Brand */}
+      {/* Brand + account menu (sign out lives here so it's reachable on mobile) */}
       <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-line px-3">
         <Logo size={30} />
         <span className="text-base font-bold tracking-tight text-ink">{APP_NAME}</span>
+        <div className="ml-auto">
+          <UserButton />
+        </div>
       </div>
 
       {/* Search */}
